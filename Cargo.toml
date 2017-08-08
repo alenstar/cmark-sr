@@ -1,0 +1,12 @@
+[package]
+name = "cmark-rs"
+version = "0.1.0"
+authors = ["alen <to_alen@sina.com>"]
+build = "build.rs"
+
+[build-dependencies]
+gcc = "*"
+cmake = "*"
+
+[dependencies]
+#base64 ="*"
