@@ -1,4 +1,4 @@
-#[warn(dead_code)]
+#![allow(dead_code)]
 use std::ops::Drop;
 use std::ops::Deref;
 
@@ -7,10 +7,19 @@ use std::ops::Deref;
 
 extern "C" {
     pub fn cmark_markdown_to_html(text: *const u8, len: usize, options: i32) -> *mut u8;
-    pub fn free(text:*mut u8);
+    pub fn free(text: *mut u8);
 // pub fn cmark_get_default_mem_allocator() ->
 }
 
+pub enum WriterFormat {
+    FormatNone = 0,
+    FormatHtml,
+    FortmatXml,
+    FormatMan,
+    FormatCommonMark,
+    FortmatPlainText,
+    FormatLatex_,
+}
 
 pub struct HtmlBody {
     raw_body: Option<*mut u8>,
@@ -24,7 +33,7 @@ impl HtmlBody {
         }
     }
 
-    pub fn new_from_markdown(markdown: &str) -> HtmlBody {
+    pub fn from_markdown(markdown: &str) -> HtmlBody {
 
         let html = HtmlBody::_load_markdown(markdown);
         match html {
@@ -40,20 +49,15 @@ impl HtmlBody {
 
     fn _load_markdown(text: &str) -> Option<(*mut u8, usize)> {
         unsafe {
-            let s:*mut u8 = cmark_markdown_to_html(text.as_ptr(), text.len(), 0);
+            let s: *mut u8 = cmark_markdown_to_html(text.as_ptr(), text.len(), 0);
             let i = cstr_lenght!(s);
-            // let out = String::from_raw_parts(out, i as usize, i as usize);
-            if i != 0 {
-                Some((s, i as usize))
-            } else {
-                None
-            }
+            if i != 0 { Some((s, i as usize)) } else { None }
         }
     }
 
-    fn markdown_to_html(text:&str) -> HtmlBody {
+    fn markdown_to_html(text: &str) -> HtmlBody {
         unsafe {
-            let s:*mut u8 = cmark_markdown_to_html(text.as_ptr(), text.len(), 0);
+            let s: *mut u8 = cmark_markdown_to_html(text.as_ptr(), text.len(), 0);
             let i = cstr_lenght!(s) as usize;
             if i != 0 {
                 HtmlBody {
@@ -61,7 +65,7 @@ impl HtmlBody {
                     body: String::from_raw_parts(s, i, i),
                 }
             } else {
-                HtmlBody::new()  
+                HtmlBody::new()
             }
         }
     }
@@ -95,9 +99,8 @@ impl Drop for HtmlBody {
     }
 }
 impl Deref for HtmlBody {
-    type Target = String ; // 目标类型
-    fn deref<'a>(&'a self) -> &'a String{
+    type Target = String; // 目标类型
+    fn deref<'a>(&'a self) -> &'a String {
         &self.body // 返回String类型的引用
     }
 }
-
