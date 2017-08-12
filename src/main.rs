@@ -6,7 +6,8 @@ extern crate sourceview;
 
 use gtk::prelude::*;
 use gtk::{Builder, Button, MessageDialog, ContainerExt, Inhibit, WidgetExt, WindowType, Window,
-          Scrollable, ScrolledWindow, TextView, BoxExt, MenuItem, MenuItemExt, FileChooserDialog, FileChooserAction, FileChooserExt,FileChooser, FileFilter, FileChooserButton};
+          Scrollable, ScrolledWindow, TextView, BoxExt, MenuItem, MenuItemExt, FileChooserDialog,
+          FileChooserAction, FileChooserExt, FileChooser, FileFilter, FileChooserButton};
 use sourceview::{View, ViewExt};
 
 //#[cfg(feature="v2_4")]
@@ -40,22 +41,22 @@ enum ViewMode {
 
 struct App {
     builder: Builder,
-    window:Window,
+    window: Window,
     scrolled_edit: ScrolledWindow,
     // scrolled_html: ScrolledWindow,
     // textview_html: TextView,
     main_box: gtk::Box,
     webcontext: WebContext,
     webview: WebView,
-    htmltext: String , //Rc<Cell<String>>,
+    htmltext: String, //Rc<Cell<String>>,
     filename: String, //Rc<Cell<String>>,
-    viewmode:ViewMode,
-    file_new:MenuItem,
-    file_open:MenuItem,
-    file_save:MenuItem,
-    file_save_as:MenuItem,
-    file_quit:MenuItem,
-    sourceview:View,
+    viewmode: ViewMode,
+    file_new: MenuItem,
+    file_open: MenuItem,
+    file_save: MenuItem,
+    file_save_as: MenuItem,
+    file_quit: MenuItem,
+    sourceview: View,
 }
 
 impl App {
@@ -67,7 +68,7 @@ impl App {
             }
             Ok(_) => {}
         }
-    let window: Window = builder.get_object("window").unwrap();
+        let window: Window = builder.get_object("window").unwrap();
 
         let file_new = builder.get_object("file_new").unwrap();
         let file_open = builder.get_object("file_open").unwrap();
@@ -75,7 +76,7 @@ impl App {
         let file_save_as = builder.get_object("file_save_as").unwrap();
         let file_quit = builder.get_object("file_quit").unwrap();
 
-        let scrolled_edit:ScrolledWindow = builder.get_object("scrolled_edit").unwrap();
+        let scrolled_edit: ScrolledWindow = builder.get_object("scrolled_edit").unwrap();
         // let scrolled_html = builder.get_object("scrolled_html").unwrap();
         //let textview_html = builder.get_object("textview_html").unwrap();
         let main_box: gtk::Box = builder.get_object("main_box").unwrap();
@@ -85,26 +86,26 @@ impl App {
         let webview = WebView::new_with_context(&context);
         main_box.pack_end(&webview, true, true, 0);
 
-          let v:View =  View::new();
-          scrolled_edit.add(&v);
+        let v: View = View::new();
+        scrolled_edit.add(&v);
 
         App {
             builder: builder,
-            window:window,
+            window: window,
             scrolled_edit: scrolled_edit,
             //scrolled_html: scrolled_html,
             // textview_html: textview_html,
             main_box: main_box,
             webcontext: context,
             webview: webview,
-            htmltext:String::new(),// Rc::new(Cell::new(String::new())),
-            filename:String::new(),// Rc::new(Cell::new(String::new())),
-            viewmode:ViewMode::Preview,
-            file_new:file_new,
-            file_open:file_open,
-            file_save:file_save,
-            file_save_as:file_save_as,
-            file_quit:file_quit,
+            htmltext: String::new(), // Rc::new(Cell::new(String::new())),
+            filename: String::new(), // Rc::new(Cell::new(String::new())),
+            viewmode: ViewMode::Preview,
+            file_new: file_new,
+            file_open: file_open,
+            file_save: file_save,
+            file_save_as: file_save_as,
+            file_quit: file_quit,
             sourceview: v,
         }
     }
@@ -128,41 +129,38 @@ impl App {
             self.htmltext = result;
             match self.viewmode {
                 ViewMode::HtmlOnly(x) => {
-            if !x {self.webview.load_plain_text(&self.htmltext);
-            } else {
-            self.webview.load_html(&self.htmltext, Some(filename));
-            }
-            }, 
-            ViewMode::EditOnly => {},
-            ViewMode::Preview => {
-            self.webview.load_html(&self.htmltext, Some(filename));
-            },
+                    if !x {
+                        self.webview.load_plain_text(&self.htmltext);
+                    } else {
+                        self.webview.load_html(&self.htmltext, Some(filename));
+                    }
+                }
+                ViewMode::EditOnly => {}
+                ViewMode::Preview => {
+                    self.webview.load_html(&self.htmltext, Some(filename));
+                }
             }
         } else {
             println!("markdown convert to html failed");
         }
     }
 
-    fn change_view(&mut self, mode:ViewMode) {
+    fn change_view(&mut self, mode: ViewMode) {
         match mode {
             ViewMode::EditOnly => {
                 self.webview.hide();
                 self.scrolled_edit.show();
-            },
-           _ => {
+            }
+            _ => {
                 self.webview.show();
                 self.scrolled_edit.show();
-            },
+            }
         }
 
     }
 
-    fn save_as(&self) {
-
-    }
-    fn save(&self) {
-
-    }
+    fn save_as(&self) {}
+    fn save(&self) {}
 }
 
 impl_deref!(App, Builder, builder);
@@ -177,44 +175,48 @@ fn main() {
         return;
     }
     let glade_src = include_str!("../static/markedit.glade");
-    let app:Rc<RefCell<App>> = Rc::new(RefCell::new(App::new(glade_src)));
+    let app: Rc<RefCell<App>> = Rc::new(RefCell::new(App::new(glade_src)));
 
-   app.borrow().window.connect_delete_event(|_, _| {
+    app.borrow().window.connect_delete_event(|_, _| {
         gtk::main_quit();
         Inhibit(false)
     });
     let a = app.clone();
-    app.borrow().file_open.connect_activate(move | _| {
+    app.borrow().file_open.connect_activate(move |_| {
         println!("file_open");
-        let dialog = FileChooserDialog::new(Some("Open File"), Some(&(a.borrow().window)), FileChooserAction::Open);
+        let dialog = FileChooserDialog::new(
+            Some("Open File"),
+            Some(&(a.borrow().window)),
+            FileChooserAction::Open,
+        );
         //dialog.add_button(gtk::Stock::CANCEL, gtk::RESPONSE_CANCEL);
         // dialog.add_button(gtk::Stock::OPEN, gtk::RESPONSE_OK);
         dialog.add_button("Ok", 1);
         dialog.add_button("Cancel", 0);
         let filter = FileFilter::new();
-    filter.set_name("markdown files");
-    filter.add_pattern("*.md");
-    dialog.add_filter(&filter);
+        filter.set_name("markdown files");
+        filter.add_pattern("*.md");
+        dialog.add_filter(&filter);
 
         let f = dialog.run();
         dialog.close();
         if f == 1 {
             // #[cfg(feature = "v3_22")]
             match dialog.get_filename() {
-           Some(x) => {
-            match  x.to_str() {
-               Some(f) => {
-                a.borrow_mut().open_file(f);
-            }, 
-               _ => {
-            println!("not found file");
-               },
+                Some(x) => {
+                    match x.to_str() {
+                        Some(f) => {
+                            a.borrow_mut().open_file(f);
+                        }
+                        _ => {
+                            println!("not found file");
+                        }
+                    }
+                }
+                _ => {
+                    println!("not found file");
+                }
             }
-        },
-        _ => {
-            println!("not found file");
-        },
-    }
         }
         println!("{}", f);
     });
