@@ -46,3 +46,4 @@ Cargo.lock
 *.glade~
 *.db
 src/tmp*
+src/*.bak
