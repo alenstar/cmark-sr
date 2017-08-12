@@ -29,7 +29,8 @@ fn main() {
     println!("cargo:rustc-flags=-L {}", "build/src");
     println!("cargo:rustc-link-lib=static=cmark-gfm");
     println!("cargo:rustc-link-lib=static=cmark-gfmextensions");
-    println!("cargo:rustc-link-search=native={}",
-             dst.join("lib").display());
+    println!(
+        "cargo:rustc-link-search=native={}",
+        dst.join("lib").display()
+    );
 }
-
