@@ -1,4 +1,4 @@
-markeidt rust implementation
+Markdown editor (rust implementation)
 =================
 
 Build
