@@ -1,14 +1,16 @@
 #[warn(unused_imports)]
+extern crate gdk;
 extern crate glib;
 extern crate gtk;
 extern crate webkit2gtk;
 extern crate sourceview;
 
+use glib::object::*;
 use gtk::prelude::*;
 use gtk::{Builder, Button, MessageDialog, ContainerExt, Inhibit, WidgetExt, WindowType, Window,
           Scrollable, ScrolledWindow, TextView, BoxExt, MenuItem, MenuItemExt, FileChooserDialog,
           FileChooserAction, FileChooserExt, FileChooser, FileFilter, FileChooserButton};
-use sourceview::{View, ViewExt};
+// use sourceview::{View, ViewExt, Buffer, BufferExt};
 
 //#[cfg(feature="v2_4")]
 //use glib::ToVariant;
@@ -26,8 +28,9 @@ use std::cell::{RefCell, Cell};
 use std::rc::Rc;
 use std::env;
 use std::path::{Path, PathBuf};
-use std::fs::File;
+use std::fs::{OpenOptions, File};
 use std::io::prelude::*;
+use std::error::Error;
 
 #[macro_use]
 mod macros;
@@ -56,7 +59,10 @@ struct App {
     file_save: MenuItem,
     file_save_as: MenuItem,
     file_quit: MenuItem,
-    sourceview: View,
+    sourceview: TextView,
+    view_html: MenuItem,
+    view_render: MenuItem,
+    view_perview: MenuItem,
 }
 
 impl App {
@@ -76,6 +82,10 @@ impl App {
         let file_save_as = builder.get_object("file_save_as").unwrap();
         let file_quit = builder.get_object("file_quit").unwrap();
 
+        let view_html = builder.get_object("view_html").unwrap();
+        let view_render = builder.get_object("view_render").unwrap();
+        let view_perview = builder.get_object("view_perview").unwrap();
+
         let scrolled_edit: ScrolledWindow = builder.get_object("scrolled_edit").unwrap();
         // let scrolled_html = builder.get_object("scrolled_html").unwrap();
         //let textview_html = builder.get_object("textview_html").unwrap();
@@ -86,7 +96,9 @@ impl App {
         let webview = WebView::new_with_context(&context);
         main_box.pack_end(&webview, true, true, 0);
 
-        let v: View = View::new();
+        let mut v: TextView = TextView::new();
+        //v.set_show_line_numbers(true);
+        //v.set_insert_spaces_instead_of_tabs(true);
         scrolled_edit.add(&v);
 
         App {
@@ -100,13 +112,16 @@ impl App {
             webview: webview,
             htmltext: String::new(), // Rc::new(Cell::new(String::new())),
             filename: String::new(), // Rc::new(Cell::new(String::new())),
-            viewmode: ViewMode::Preview,
+            viewmode: ViewMode::HtmlOnly(true),
             file_new: file_new,
             file_open: file_open,
             file_save: file_save,
             file_save_as: file_save_as,
             file_quit: file_quit,
             sourceview: v,
+            view_html: view_html,
+            view_render: view_render,
+            view_perview: view_perview,
         }
     }
 
@@ -134,10 +149,18 @@ impl App {
                     } else {
                         self.webview.load_html(&self.htmltext, Some(filename));
                     }
+                    let buf = self.sourceview.get_buffer().unwrap();
+                    buf.set_text(&contents);
                 }
-                ViewMode::EditOnly => {}
+                ViewMode::EditOnly => {
+                    // self.sourceview.set_show_line_numbers(true);
+                    let buf = self.sourceview.get_buffer().unwrap();
+                    buf.set_text(&contents);
+                }
                 ViewMode::Preview => {
                     self.webview.load_html(&self.htmltext, Some(filename));
+                    let buf = self.sourceview.get_buffer().unwrap();
+                    buf.set_text(&contents);
                 }
             }
         } else {
@@ -151,7 +174,11 @@ impl App {
                 self.webview.hide();
                 self.scrolled_edit.show();
             }
-            _ => {
+            ViewMode::HtmlOnly(_) => {
+                self.webview.show();
+                self.scrolled_edit.hide();
+            }
+            ViewMode::Preview => {
                 self.webview.show();
                 self.scrolled_edit.show();
             }
@@ -183,7 +210,6 @@ fn main() {
     });
     let a = app.clone();
     app.borrow().file_open.connect_activate(move |_| {
-        println!("file_open");
         let dialog = FileChooserDialog::new(
             Some("Open File"),
             Some(&(a.borrow().window)),
@@ -218,15 +244,111 @@ fn main() {
                 }
             }
         }
-        println!("{}", f);
     });
 
-    // app.change_view(ViewMode::Preview);
-    let args: Vec<String> = env::args().collect();
-    if args.len() == 2 {
-        app.borrow_mut().open_file(&args[1])
-    }
+    let a = app.clone();
+    app.borrow().view_perview.connect_activate(move |_| {});
+    let a = app.clone();
+    app.borrow().file_save.connect_activate(move |_| {
+        let filename = &a.borrow().filename;
+        let buf = a.borrow().sourceview.get_buffer().unwrap();
+        let start_iter = buf.get_start_iter();
+        let end_iter = buf.get_end_iter();
+        let text = buf.get_text(&start_iter, &end_iter, false).unwrap();
+        let mut options = OpenOptions::new();
+        let mut file = options
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(filename)
+            .unwrap();
+        match file.write_all(text.as_bytes()) {
+            Err(why) => {
+                panic!("couldn't write to {}: {}", filename, why.description());
+            }
+            Ok(_) => println!("successfully wrote to {}", filename),
+        }
+    });
+
+    let a = app.clone();
+    app.borrow().file_save_as.connect_activate(move |_| {
+        let dialog = FileChooserDialog::new(
+            Some("Save File"),
+            Some(&(a.borrow().window)),
+            FileChooserAction::Save,
+        );
+        //dialog.add_button(gtk::Stock::CANCEL, gtk::RESPONSE_CANCEL);
+        // dialog.add_button(gtk::Stock::OPEN, gtk::RESPONSE_OK);
+        dialog.add_button("Ok", 1);
+        dialog.add_button("Cancel", 0);
+        let filter = FileFilter::new();
+        filter.set_name("markdown files");
+        filter.add_pattern("*.md");
+        dialog.add_filter(&filter);
+
+        let code = dialog.run();
+        dialog.close();
+        if code == 1 {
+            // #[cfg(feature = "v3_22")]
+            match dialog.get_filename() {
+                Some(x) => {
+                    match x.to_str() {
+                        Some(filename) => {
+                            let buf = a.borrow().sourceview.get_buffer().unwrap();
+                            let start_iter = buf.get_start_iter();
+                            let end_iter = buf.get_end_iter();
+                            let text = buf.get_text(&start_iter, &end_iter, false).unwrap();
+                            // let mut file = File::open(filename).expect("file not found");
+                            let mut options = OpenOptions::new();
+                            let mut file = options
+                                .create_new(true)
+                                .write(true)
+                                .truncate(true)
+                                .open(filename)
+                                .unwrap();
+                            match file.write_all(text.as_bytes()) {
+                                Err(why) => {
+                                    panic!(
+                                        "couldn't write to {}: {} {}",
+                                        filename,
+                                        why.description(),
+                                        text
+                                    )
+                                }
+                                Ok(_) => {
+                                    println!("successfully wrote to {}", filename);
+                                    a.borrow_mut().open_file(filename);
+                                }
+                            }
+                        }
+                        _ => {
+                            println!("not found file");
+                        }
+                    }
+                }
+                _ => {
+                    println!("not found file");
+                }
+            }
+        }
+
+
+    });
+    let a = app.clone();
+    app.borrow().file_quit.connect_activate(move |_| {
+        gtk::main_quit();
+        Inhibit(false);
+    });
 
     app.borrow().window.show_all();
+
+    let args: Vec<String> = env::args().collect();
+    if args.len() == 2 {
+        app.borrow_mut().change_view(ViewMode::Preview);
+        app.borrow_mut().open_file(&args[1]);
+    } else {
+        app.borrow_mut().change_view(ViewMode::Preview);
+    }
+
     gtk::main();
 }

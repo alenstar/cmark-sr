@@ -17,5 +17,6 @@ features = ["v3_16"]
 serde_json = "*"
 base64 ="*"
 glib = "*"
+gdk = "*"
 sourceview = "0.1.3"
 webkit2gtk = "0.1.0"
